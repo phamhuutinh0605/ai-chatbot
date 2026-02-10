@@ -1,0 +1,23 @@
+{
+  "name": "shinhan-chatbot-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:api": "pnpm --filter @shinhan/api dev",
+    "dev:web": "pnpm --filter @shinhan/web dev",
+    "build": "pnpm -r build",
+    "build:api": "pnpm --filter @shinhan/api build",
+    "build:web": "pnpm --filter @shinhan/web build",
+    "start:api": "pnpm --filter @shinhan/api start",
+    "start:web": "pnpm --filter @shinhan/web start"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "5.7.3"
+  }
+}

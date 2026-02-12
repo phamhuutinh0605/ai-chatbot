@@ -24,18 +24,18 @@ export class ChatGateway {
 
   @SubscribeMessage('chat:send')
   async handleMessage(
-    @MessageBody() data: { message: string; conversationId?: string },
+    @MessageBody() data: { message: string; conversationId?: string; language?: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const { message, conversationId } = data;
+    const { message, conversationId, language = 'auto' } = data;
     const messageId = `msg-${Date.now()}`;
 
     try {
       // Retrieve context from RAG
       const context = await this.chatService.retrieveContext(message);
 
-      // Build prompt
-      const prompt = this.chatService.buildPrompt(message, context);
+      // Build prompt with language preference
+      const prompt = this.chatService.buildPrompt(message, context, language);
 
       // Stream response
       const stream = this.chatService.generateStream(prompt);

@@ -13,7 +13,12 @@ import { AllExceptionsFilter } from './middlewares/filters/all-exception.filter'
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    bodyParser: true,
   });
+
+  // Increase body size limit for large documents
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
 
   // Set global prefix
   app.setGlobalPrefix('api/v1');
@@ -66,7 +71,7 @@ async function bootstrap() {
 
   // Swagger setup
   const config = new DocumentBuilder()
-    .setTitle('Shinhan Bank AI Chatbot API')
+    .setTitle('Shinhan DS AI Chatbot API')
     .setDescription('RAG-powered chatbot API documentation')
     .setVersion('1.0.0')
     .addBearerAuth()

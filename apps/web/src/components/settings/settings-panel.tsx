@@ -1,7 +1,14 @@
 "use client"
 
-import { OLLAMA_CONFIG, CHROMA_CONFIG, RAG_CONFIG } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { useChatStore, type Language } from "@/stores/chat-store"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Server,
   Database,
@@ -11,9 +18,13 @@ import {
   Cpu,
   HardDrive,
   Ruler,
+  Languages,
 } from "lucide-react"
+import { CHROMA_CONFIG, OLLAMA_CONFIG, RAG_CONFIG } from "@/constants/config"
 
 export function SettingsPanel() {
+  const { language, setLanguage } = useChatStore()
+
   return (
     <div className="flex flex-1 flex-col h-full">
       {/* Header */}
@@ -30,6 +41,39 @@ export function SettingsPanel() {
 
       <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-thin">
         <div className="max-w-3xl mx-auto space-y-6">
+          {/* Language Preference */}
+          <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-4">
+              <Languages className="h-4 w-4 text-primary" />
+              Language Preference
+            </h2>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Response Language</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose how the AI should respond to your questions
+                  </p>
+                </div>
+                <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">🌐 Auto-detect</SelectItem>
+                    <SelectItem value="en">🇬🇧 English</SelectItem>
+                    <SelectItem value="vi">🇻🇳 Tiếng Việt</SelectItem>
+                    <SelectItem value="ko">🇰🇷 한국어</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+                <strong>Auto-detect:</strong> AI will respond in the same language as your question.
+                <br />
+                <strong>Fixed language:</strong> AI will always respond in the selected language.
+              </div>
+            </div>
+          </section>
           {/* Architecture overview */}
           <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-4">

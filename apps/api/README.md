@@ -1,4 +1,4 @@
-# Shinhan Bank AI Chatbot - Backend API
+# Shinhan DS AI Chatbot - Backend API
 
 NestJS backend với RAG (Retrieval-Augmented Generation) sử dụng Ollama và ChromaDB.
 

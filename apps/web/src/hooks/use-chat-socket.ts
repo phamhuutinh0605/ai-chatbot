@@ -121,10 +121,14 @@ export function useChatSocket() {
       addMessage(assistantMessage)
       setStreaming(true)
 
+      // Get language preference from store
+      const language = useChatStore.getState().language
+
       // Send message via WebSocket
       socketRef.current.emit("chat:send", {
         message: content.trim(),
         conversationId,
+        language,
       })
     },
     [isStreaming, addMessage, setStreaming, setError]

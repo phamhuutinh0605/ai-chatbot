@@ -6,7 +6,11 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main",
-    "start:prod": "node dist/main"
+    "start:prod": "node dist/main",
+    "index-docs": "node scripts/index-documents.js",
+    "index-pdfs": "node scripts/index-pdf-documents.js",
+    "migrate-pdfs": "node scripts/migrate-existing-pdfs.js",
+    "index-existing": "node scripts/index-existing-pdfs.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
@@ -21,6 +25,7 @@
     "@nestjs/websockets": "^10.3.0",
     "@types/multer": "^2.0.0",
     "bcrypt": "^6.0.0",
+    "chromadb": "^3.3.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "cookie-parser": "^1.4.6",
@@ -29,6 +34,7 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-parse": "1.1.1",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
     "socket.io": "^4.6.1",

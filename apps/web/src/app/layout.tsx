@@ -7,7 +7,7 @@ import { QueryProvider } from "@/providers/query-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Shinhan Bank AI Chatbot",
+  title: "Shinhan DS AI Chatbot",
   description: "RAG-powered chatbot with Ollama",
 };
 

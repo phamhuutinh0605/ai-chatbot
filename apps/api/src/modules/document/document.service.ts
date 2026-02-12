@@ -8,13 +8,39 @@ import { ErrorCode } from '@/enums/error-code.enum';
 import * as fs from 'fs';
 import * as path from 'path';
 
+interface ParsedDocument {
+  filename: string;
+  originalName: string;
+  content: string;
+  metadata: {
+    fileType: string;
+    fileSize: number;
+    parsedAt: number;
+    pageCount?: number;
+  };
+}
+
 @Injectable()
 export class DocumentService {
+  private readonly UPLOADS_DIR = path.join(process.cwd(), 'documents', 'uploads');
+  private readonly RAW_DIR = path.join(this.UPLOADS_DIR, 'raw');
+  private readonly PARSED_DIR = path.join(this.UPLOADS_DIR, 'parsed');
+
   constructor(
     private readonly ragService: RagService,
     private readonly embeddingService: EmbeddingService,
     private readonly chromaService: ChromaService,
-  ) {}
+  ) {
+    this.ensureDirectories();
+  }
+
+  private ensureDirectories() {
+    [this.UPLOADS_DIR, this.RAW_DIR, this.PARSED_DIR].forEach((dir) => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    });
+  }
 
   async indexDocument(dto: IndexDocumentDto) {
     try {
@@ -52,34 +78,32 @@ export class DocumentService {
 
   async listDocuments() {
     try {
-      const documentsPath = path.join(process.cwd(), 'documents');
+      const documents = [];
 
-      // Check if documents folder exists
-      if (!fs.existsSync(documentsPath)) {
-        return { documents: [] };
-      }
+      // List raw files
+      if (fs.existsSync(this.RAW_DIR)) {
+        const rawFiles = fs.readdirSync(this.RAW_DIR);
 
-      const files = fs.readdirSync(documentsPath);
-      const documents = files
-        .filter((file) => {
+        for (const file of rawFiles) {
           const ext = path.extname(file).toLowerCase();
-          return ['.md', '.txt', '.pdf', '.doc', '.docx'].includes(ext);
-        })
-        .map((file) => {
-          const filePath = path.join(documentsPath, file);
-          const stats = fs.statSync(filePath);
-          const ext = path.extname(file).toLowerCase().slice(1);
+          if (!['.md', '.txt', '.pdf', '.doc', '.docx'].includes(ext)) continue;
 
-          return {
-            id: file.replace(/\.[^/.]+$/, ''),
+          const rawPath = path.join(this.RAW_DIR, file);
+          const stats = fs.statSync(rawPath);
+          const baseName = file.replace(/\.[^/.]+$/, '');
+          const parsedPath = path.join(this.PARSED_DIR, `${baseName}.json`);
+
+          documents.push({
+            id: baseName,
             filename: file,
-            type: ext === 'docx' ? 'doc' : ext,
+            type: ext.slice(1),
             size: stats.size,
             uploadedAt: stats.mtimeMs,
-            chunkCount: 0, // Will be calculated after indexing
-            status: 'indexed',
-          };
-        });
+            status: fs.existsSync(parsedPath) ? 'indexed' : 'pending',
+            chunkCount: 0,
+          });
+        }
+      }
 
       return { documents };
     } catch (error) {
@@ -91,15 +115,56 @@ export class DocumentService {
     }
   }
 
+  private async parseDocument(filePath: string, fileType: string): Promise<string> {
+    if (fileType === '.pdf') {
+      const pdfParse = require('pdf-parse');
+      const dataBuffer = fs.readFileSync(filePath);
+      const pdfData = await pdfParse(dataBuffer);
+      return pdfData.text;
+    } else {
+      // Text-based files (md, txt)
+      return fs.readFileSync(filePath, 'utf-8');
+    }
+  }
+
+  private async saveParsedDocument(parsed: ParsedDocument): Promise<void> {
+    const parsedPath = path.join(
+      this.PARSED_DIR,
+      `${parsed.filename.replace(/\.[^/.]+$/, '')}.json`,
+    );
+    fs.writeFileSync(parsedPath, JSON.stringify(parsed, null, 2), 'utf-8');
+  }
+
   async uploadFiles(files: Express.Multer.File[]) {
     try {
       const results = [];
 
       for (const file of files) {
-        // Read file content
-        const content = fs.readFileSync(file.path, 'utf-8');
+        const ext = path.extname(file.filename).toLowerCase();
 
-        // Index the document
+        // 1. Parse document
+        const content = await this.parseDocument(file.path, ext);
+
+        if (!content || content.trim().length === 0) {
+          console.warn(`No content extracted from ${file.filename}`);
+          continue;
+        }
+
+        // 2. Save parsed JSON
+        const parsed: ParsedDocument = {
+          filename: file.filename,
+          originalName: file.originalname,
+          content,
+          metadata: {
+            fileType: ext,
+            fileSize: file.size,
+            parsedAt: Date.now(),
+          },
+        };
+
+        await this.saveParsedDocument(parsed);
+
+        // 3. Index the document
         const result = await this.indexDocument({
           filename: file.filename,
           content,
@@ -114,7 +179,7 @@ export class DocumentService {
       }
 
       return {
-        message: `Successfully uploaded ${files.length} file(s)`,
+        message: `Successfully uploaded and indexed ${results.length} file(s)`,
         files: results,
       };
     } catch (error) {

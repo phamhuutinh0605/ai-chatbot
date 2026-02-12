@@ -45,15 +45,15 @@ export class DocumentController {
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: diskStorage({
-        destination: './documents',
-        filename: (req, file, cb) => {
+        destination: './documents/uploads/raw',
+        filename: (_, file, cb) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           const name = file.originalname.replace(ext, '');
           cb(null, `${name}-${uniqueSuffix}${ext}`);
         },
       }),
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_, file, cb) => {
         const allowedExtensions = ['.md', '.txt', '.pdf', '.doc', '.docx'];
         const ext = extname(file.originalname).toLowerCase();
 

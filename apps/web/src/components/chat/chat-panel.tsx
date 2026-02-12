@@ -36,7 +36,7 @@ export function ChatPanel() {
             AI Knowledge Assistant
           </h1>
           <p className="text-xs text-muted-foreground">
-            Ask questions about Shinhan Bank policies and guidelines
+            Ask questions about Shinhan DS policies and guidelines
           </p>
         </div>
         {messages.length > 0 && (

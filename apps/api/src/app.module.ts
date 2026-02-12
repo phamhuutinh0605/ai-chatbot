@@ -33,11 +33,11 @@ import { JwtAccessTokenGuard } from './guards/jwt-access-token.guard';
     RagModule,
     DocumentModule,
   ],
-  providers: [
-    {
-      provide: APP_GUARD,
-      useClass: JwtAccessTokenGuard,
-    },
-  ],
+  // providers: [
+  //   {
+  //     provide: APP_GUARD,
+  //     useClass: JwtAccessTokenGuard,
+  //   },
+  // ],
 })
 export class AppModule {}

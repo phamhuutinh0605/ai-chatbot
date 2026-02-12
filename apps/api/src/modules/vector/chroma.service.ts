@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ChromaClient } from 'chromadb';
 
 export interface ChunkMetadata {
   source: string;
@@ -20,36 +21,29 @@ export interface VectorSearchResult {
 }
 
 @Injectable()
-export class ChromaService {
-  private host: string = process.env.CHROMA_URL || 'http://localhost:8000';
+export class ChromaService implements OnModuleInit {
+  private client: ChromaClient;
+  private collection: any;
   private collectionName: string = 'shinhan-knowledge-base';
-  private collectionId: string | null = null;
+
+  async onModuleInit() {
+    await this.init();
+  }
 
   async init(): Promise<void> {
     try {
-      const res = await fetch(`${this.host}/api/v1/collections`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: this.collectionName,
-          metadata: { 'hnsw:space': 'cosine' },
-        }),
+      const host = process.env.CHROMA_URL || 'http://localhost:8000';
+      this.client = new ChromaClient({ path: host });
+
+      // Get or create collection
+      this.collection = await this.client.getOrCreateCollection({
+        name: this.collectionName,
+        metadata: { 'hnsw:space': 'cosine' },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        this.collectionId = data.id;
-      } else {
-        const getRes = await fetch(
-          `${this.host}/api/v1/collections/${this.collectionName}`,
-        );
-        if (getRes.ok) {
-          const data = await getRes.json();
-          this.collectionId = data.id;
-        }
-      }
+      console.log('✅ ChromaDB collection ready:', this.collectionName);
     } catch (error) {
-      console.error('ChromaService init failed:', error);
+      console.error('❌ ChromaService init failed:', error);
     }
   }
 
@@ -57,84 +51,74 @@ export class ChromaService {
     chunks: DocumentChunk[],
     embeddings: number[][],
   ): Promise<void> {
-    if (!this.collectionId) await this.init();
+    if (!this.collection) await this.init();
 
-    const ids = chunks.map((c) => c.id);
-    const documents = chunks.map((c) => c.content);
-    const metadatas = chunks.map((c) => c.metadata);
-
-    await fetch(`${this.host}/api/v1/collections/${this.collectionId}/add`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ids,
-        documents,
+    try {
+      await this.collection.add({
+        ids: chunks.map((c) => c.id),
+        documents: chunks.map((c) => c.content),
         embeddings,
-        metadatas,
-      }),
-    });
+        metadatas: chunks.map((c) => c.metadata),
+      });
+
+      console.log(`✅ Added ${chunks.length} chunks to ChromaDB`);
+    } catch (error) {
+      console.error('❌ Failed to add documents:', error);
+      throw error;
+    }
   }
 
   async query(
     embedding: number[],
     topK: number = 4,
   ): Promise<VectorSearchResult[]> {
-    if (!this.collectionId) await this.init();
+    if (!this.collection) await this.init();
 
-    const res = await fetch(
-      `${this.host}/api/v1/collections/${this.collectionId}/query`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query_embeddings: [embedding],
-          n_results: topK,
-          include: ['documents', 'metadatas', 'distances'],
-        }),
-      },
-    );
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    const results: VectorSearchResult[] = [];
-    const ids = data.ids?.[0] ?? [];
-    const docs = data.documents?.[0] ?? [];
-    const metas = data.metadatas?.[0] ?? [];
-    const distances = data.distances?.[0] ?? [];
-
-    for (let i = 0; i < ids.length; i++) {
-      results.push({
-        id: ids[i],
-        document: docs[i],
-        metadata: metas[i] as ChunkMetadata,
-        score: 1 - (distances[i] ?? 0),
+    try {
+      const results = await this.collection.query({
+        queryEmbeddings: [embedding],
+        nResults: topK,
+        include: ['documents', 'metadatas', 'distances'],
       });
-    }
 
-    return results;
+      const output: VectorSearchResult[] = [];
+      const ids = results.ids?.[0] ?? [];
+      const docs = results.documents?.[0] ?? [];
+      const metas = results.metadatas?.[0] ?? [];
+      const distances = results.distances?.[0] ?? [];
+
+      for (let i = 0; i < ids.length; i++) {
+        output.push({
+          id: ids[i],
+          document: docs[i],
+          metadata: metas[i] as ChunkMetadata,
+          score: 1 - (distances[i] ?? 0),
+        });
+      }
+
+      return output;
+    } catch (error) {
+      console.error('❌ Query failed:', error);
+      return [];
+    }
   }
 
   async count(): Promise<number> {
-    if (!this.collectionId) await this.init();
+    if (!this.collection) await this.init();
 
     try {
-      const res = await fetch(
-        `${this.host}/api/v1/collections/${this.collectionId}/count`,
-      );
-      if (!res.ok) return 0;
-
-      const data = await res.json();
-      return data.count ?? 0;
-    } catch {
+      const result = await this.collection.count();
+      return result ?? 0;
+    } catch (error) {
+      console.error('❌ Count error:', error);
       return 0;
     }
   }
 
   async healthCheck(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.host}/api/v1/heartbeat`);
-      return res.ok;
+      await this.client.heartbeat();
+      return true;
     } catch {
       return false;
     }

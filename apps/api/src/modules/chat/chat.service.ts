@@ -14,8 +14,8 @@ export class ChatService {
     return this.ragService.retrieveContext(query);
   }
 
-  buildPrompt(question: string, context: VectorSearchResult[]): string {
-    const ragPrompt: RAGPrompt = this.ragService.buildRAGPrompt(question, context);
+  buildPrompt(question: string, context: VectorSearchResult[], language = 'auto'): string {
+    const ragPrompt: RAGPrompt = this.ragService.buildRAGPrompt(question, context, language);
     return ragPrompt.fullPrompt;
   }
 
